@@ -7,7 +7,7 @@ spec:
   - kustomizeConfig:
       repoRef:
         name: manifests
-        path: namespaces/base
+        path: namespaces
     name: namespaces
   - kustomizeConfig:
       repoRef:
@@ -46,63 +46,204 @@ spec:
   - kustomizeConfig:
       repoRef:
         name: manifests
-        path: istio/istio/base
+        path: istio/istio
     name: istio
   - kustomizeConfig:
+      parameters:
+        - name: namespace
+          value: cert-manager
       repoRef:
         name: manifests
-        path: stacks/kubernetes/application/cert-manager-crds
+        path: cert-manager/cert-manager-crds
     name: cert-manager-crds
   - kustomizeConfig:
+      parameters:
+        - name: namespace
+          value: kube-system
       repoRef:
         name: manifests
-        path: stacks/kubernetes/application/cert-manager-kube-system-resources
+        path: cert-manager/cert-manager-kube-system-resources
     name: cert-manager-kube-system-resources
   - kustomizeConfig:
+      overlays:
+        - self-signed
+        - application
+      parameters:
+        - name: namespace
+          value: cert-manager
       repoRef:
         name: manifests
-        path: stacks/kubernetes/application/cert-manager
+        path: cert-manager/cert-manager
     name: cert-manager
   - kustomizeConfig:
       repoRef:
         name: manifests
-        path: metacontroller/base
+        path: metacontroller
     name: metacontroller
   - kustomizeConfig:
+      overlays:
+        - application
+      parameters:
+        - name: namespace
+          value: istio-system
+        - name: userid-header
+          value: kubeflow-userid
+        - name: oidc_provider
+          value: http://dex.auth.svc.cluster.local:5556/dex
+        - name: oidc_redirect_uri
+          value: /login/oidc
+        - name: oidc_auth_url
+          value: /dex/auth
+        - name: skip_auth_uri
+          value: /dex
+        - name: client_id
+          value: kubeflow-oidc-authservice
       repoRef:
         name: manifests
-        path: stacks/kubernetes/application/oidc-authservice
+        path: istio/oidc-authservice
     name: oidc-authservice
-#  - kustomizeConfig:
-#      repoRef:
-#        name: manifests
-#        path: stacks/kubernetes/application/dex-auth
-#    name: dex
   - kustomizeConfig:
+      overlays:
+        - istio
+      parameters:
+        - name: namespace
+          value: auth
+        - name: issuer
+          value: http://dex.auth.svc.cluster.local:5556/dex
+        - name: client_id
+          value: kubeflow-oidc-authservice
+        - name: oidc_redirect_uris
+          value: '["/login/oidc"]'
+        - name: static_email
+          value: admin@kubeflow.org
+        - name: static_password_hash
+          value: $2y$12$ruoM7FqXrpVgaol44eRZW.4HWS8SAvg6KYVVSCIwKQPBmTpCm.EeO
       repoRef:
         name: manifests
-        path: admission-webhook/bootstrap/overlays/application
+        path: dex-auth/dex-crds
+    name: dex
+  - kustomizeConfig:
+      overlays:
+        - application
+      repoRef:
+        name: manifests
+        path: admission-webhook/bootstrap
     name: bootstrap
   - kustomizeConfig:
+      overlays:
+        - application
       repoRef:
         name: manifests
-        path: spark/spark-operator/overlays/application
+        path: spark/spark-operator
     name: spark-operator
   - kustomizeConfig:
+      overlays:
+        - application
+      parameters:
+        - name: namespace
+          value: knative-serving
       repoRef:
         name: manifests
-        path: stacks/kubernetes
-    name: kubeflow-apps-HACK
+        path: knative/knative-serving-crds
+    name: knative-crds
+  - kustomizeConfig:
+      overlays:
+        - application
+      parameters:
+        - name: namespace
+          value: knative-serving
+      repoRef:
+        name: manifests
+        path: knative/knative-serving-install
+    name: knative-install
+  - kustomizeConfig:
+      overlays:
+        - application
+      repoRef:
+        name: manifests
+        path: kfserving/kfserving-crds
+    name: kfserving-crds
+  - kustomizeConfig:
+      overlays:
+        - application
+      repoRef:
+        name: manifests
+        path: kfserving/kfserving-install
+    name: kfserving-install
+  # Sourced from: https://github.com/kubeflow/manifests/blob/master/stacks/kubernetes/kustomization.yaml
+  # Control Plane:
+  - kustomizeConfig:
+      overlays:
+        - application
+      repoRef:
+        name: manifests
+        path: admission-webhook/webhook
+    name: webhook
+  - kustomizeConfig:
+      overlays:
+        - istio
+        - application
+      repoRef:
+        name: manifests
+        path: common/centraldashboard
+    name: centraldashboard
   - kustomizeConfig:
       repoRef:
         name: manifests
-        path: knative/installs/generic
-    name: knative
-#  - kustomizeConfig:
-#      repoRef:
-#        name: manifests
-#        path: kfserving/installs/generic
-#    name: kfserving
+        path: kubeflow-roles
+    name: kubeflow-roles
+  - kustomizeConfig:
+      overlays:
+        - istio
+        - application
+      parameters:
+        - name: userid-header
+          value: kubeflow-userid
+      repoRef:
+        name: manifests
+        path: jupyter/jupyter-web-app
+    name: jupyter-web-app
+  - kustomizeConfig:
+      overlays:
+        - istio
+        - application
+      repoRef:
+        name: manifests
+        path: jupyter/notebook-controller
+    name: notebook-controller
+  - kustomizeConfig:
+      overlays:
+        - application
+        - istio
+      parameters:
+        - name: admin
+          value: johnDoe@acme.com
+      repoRef:
+        name: manifests
+        path: profiles
+    name: profiles
+  # Training Operators:
+  #   TODO
+  # Pipelines:
+  #   TODO
+  # Serving components:
+  - kustomizeConfig:
+      overlays:
+        - application
+      repoRef:
+        name: manifests
+        path: seldon/seldon-core-operator
+    name: seldon-core-operator
+  # Metadata:
+  - kustomizeConfig:
+      overlays:
+        - istio
+        - application
+        - db
+      repoRef:
+        name: manifests
+        path: metadata
+    name: metadata
   repos:
   - name: manifests
     uri: https://github.com/kubeflow/manifests/archive/v1.2-branch.tar.gz
